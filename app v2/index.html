@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reserva Bucs – La Pua</title>
+<style>
+/* === CSS === */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #f4f4f4; }
+.app { max-width: 500px; margin: 20px auto; padding: 10px; background: #fff; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+h1,h2 { text-align: center; margin-bottom: 10px; }
+.buc-container { display: flex; justify-content: space-around; margin-bottom: 20px; }
+.buc { padding: 15px; background: #ddd; border-radius: 8px; cursor: pointer; transition: 0.3s; text-align: center; flex:1; margin: 0 5px;}
+.buc.selected { background: #4ade80; color: #fff; }
+#calendar { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 10px; }
+#calendarHeader { display: grid; grid-template-columns: repeat(7,1fr); text-align:center; font-weight:bold; margin-bottom: 5px; }
+.day { padding: 10px; background: #eee; border-radius: 5px; text-align: center; cursor: pointer; }
+.day.selected { background: #4ade80; color:#fff; }
+.day.disabled { background:#ccc; cursor:not-allowed; }
+.slot { padding:8px; margin:2px 0; background:#ddd; border-radius:5px; cursor:pointer; }
+.slot.busy { background:#f87171; cursor:not-allowed; }
+.slot.selected { background:#4ade80; color:#fff; }
+#selection { margin: 10px 0; padding: 5px; background:#e0f2fe; border-radius:5px; display:none; }
+#cartText { margin:10px 0; }
+#checkout { display:none; padding:10px; background:#fef3c7; border-radius:5px; }
+#checkout input { width:100%; padding:5px; margin-bottom:5px; border-radius:5px; border:1px solid #ccc; }
+#checkout button { width:100%; padding:10px; background:#4ade80; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:1000; }
+.modal-content { background:#fff; padding:20px; border-radius:10px; max-width:400px; text-align:center; }
+.modal button { margin-top:10px; padding:10px 15px; background:#4ade80; color:#fff; border:none; border-radius:5px; cursor:pointer; }
+#calendarNav { display:flex; justify-content: space-between; margin-bottom:5px; }
+#calendarNav button { padding:5px 10px; border-radius:5px; border:none; background:#4ade80; color:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <h1>La Pua – Reserva Bucs</h1>
+
+  <!-- Modal d'introducció -->
+  <div id="introModal" class="modal">
+    <div class="modal-content">
+      <h2>Benvingut a La Pua!</h2>
+      <p>Els nostres bucs d’assaig estan al soterrani del Casal de Torreblanca, Sant Cugat.</p>
+      <p>Pots seleccionar el buc, dia i hora per reservar fàcilment.</p>
+      <button id="closeIntro">Començar a reservar</button>
+    </div>
+  </div>
+
+  <h2>Selecciona el buc</h2>
+  <div class="buc-container">
+    <div class="buc" data-buc="A">Buc A</div>
+    <div class="buc" data-buc="B">Buc B</div>
+  </div>
+
+  <h2>Selecciona el dia</h2>
+  <div id="calendarNav">
+    <button id="prev">&lt; Anterior</button>
+    <span id="monthLabel"></span>
+    <button id="next">Següent &gt;</button>
+  </div>
+  <div id="calendarHeader"></div>
+  <div id="calendar"></div>
+
+  <h2>Hores disponibles</h2>
+  <div id="slots"></div>
+
+  <div id="selection">
+    <p id="rangeText"></p>
+    <button id="addCart">Confirma reserva / Continua reservant</button>
+  </div>
+
+  <h2>Carret</h2>
+  <div id="cartText">Carret buit</div>
+
+  <div id="checkout">
+    <h3>Finalitzar reserva / Pagar</h3>
+    <input type="text" id="name" placeholder="Nom">
+    <input type="email" id="email" placeholder="Correu">
+    <button id="confirm">Confirmar reserva</button>
+    <div id="summary">
+      <p id="duration"></p>
+      <p id="price"></p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* === JS === */
+const PRICE_PER_HOUR = 8;
+const MIN_CELLS = 2;
+const MAX_CELLS = 6;
+const MAX_HOURS_MONTH = 10;
+const TIMES = [];
+for (let h=9; h<21; h++){ TIMES.push(`${String(h).padStart(2,"0")}:00`); TIMES.push(`${String(h).padStart(2,"0")}:30`); }
+
+const festiusCatalunya = ["2026-01-01","2026-01-06","2026-04-03","2026-04-06","2026-05-01","2026-06-24","2026-08-15","2026-09-11","2026-10-12","2026-12-08","2026-12-25","2026-12-26","2026-03-03","2026-06-29"];
+
+let selectedBuc=null, selectedDate=null, startCell=null, endCell=null;
+let month=new Date().getMonth(), year=new Date().getFullYear();
+let cart=[];
+
+const bucEls=document.querySelectorAll(".buc");
+const calendar=document.getElementById("calendar");
+const calendarHeader=document.getElementById("calendarHeader");
+const monthLabel=document.getElementById("monthLabel");
+const slotsEl=document.getElementById("slots");
+const selection=document.getElementById("selection");
+const rangeText=document.getElementById("rangeText");
+const cartText=document.getElementById("cartText");
+const addCartBtn=document.getElementById("addCart");
+const checkout=document.getElementById("checkout");
+const nameInput=document.getElementById("name");
+const emailInput=document.getElementById("email");
+const confirmBtn=document.getElementById("confirm");
+const summary=document.getElementById("summary");
+const durationEl=document.getElementById("duration");
+const priceEl=document.getElementById("price");
+const introModal=document.getElementById("introModal");
+const closeIntro=document.getElementById("closeIntro");
+
+/* Modal introducció */
+introModal.style.display="flex";
+closeIntro.addEventListener("click",()=>{ introModal.style.display="none"; });
+
+/* Selecció buc */
+bucEls.forEach(el=>{
+  el.onclick=()=>{
+    bucEls.forEach(x=>x.classList.remove("selected"));
+    el.classList.add("selected");
+    selectedBuc=el.dataset.buc;
+    if(selectedDate) renderSlots();
+  };
+});
+
+/* Calendari */
+function isDisabledDate(y,m,d){
+  const dateStr=`${y}-${m+1}-${d}`;
+  const day=new Date(y,m,d).getDay();
+  return day===0 || festiusCatalunya.includes(dateStr);
+}
+
+function buildCalendar(){
+  calendar.innerHTML=""; calendarHeader.innerHTML="";
+  const dayNames=["Dl","Dm","Dc","Dj","Dv","Ds","Dg"];
+  dayNames.forEach(d=>{ const el=document.createElement("div"); el.textContent=d; calendarHeader.appendChild(el); });
+
+  const names=["Gener","Febrer","Març","Abril","Maig","Juny","Juliol","Agost","Setembre","Octubre","Novembre","Desembre"];
+  monthLabel.textContent=`${names[month]} ${year}`;
+
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const firstDay=new Date(year,month,1).getDay();
+  const offset=firstDay===0?6:firstDay-1;
+
+  for(let i=0;i<offset;i++){ const empty=document.createElement("div"); empty.className="day empty"; calendar.appendChild(empty); }
+
+  for(let d=1;d<=daysInMonth;d++){
+    const el=document.createElement("div"); el.className="day"; el.textContent=d;
+    if(isDisabledDate(year,month,d)) el.classList.add("disabled");
+    else el.onclick=()=>{
+      selectedDate=`${year}-${month+1}-${d}`;
+      document.querySelectorAll(".day").forEach(x=>x.classList.remove("selected"));
+      el.classList.add("selected");
+      if(selectedBuc) renderSlots();
+    };
+    calendar.appendChild(el);
+  }
+}
+
+/* Carret i franges */
+function totalHoursInMonth(y,m){ return cart.reduce((sum,c)=>{const cd=new Date(c.date);return(cd.getFullYear()===y&&cd.getMonth()===m?sum+c.dur:sum);},0); }
+function totalHoursInDay(dateStr){ return cart.reduce((sum,c)=>c.date===dateStr?sum+c.dur:sum,0); }
+
+/* Render slots amb fetch del Sheet */
+async function renderSlots(){
+  slotsEl.innerHTML=""; startCell=endCell=null; selection.style.display="none";
+  if(!selectedBuc||!selectedDate) return;
+
+  let reserved = [];
+  try{
+    const res = await fetch("LA_TEVA_URL_WEB_APP"); // <-- posa aquí la URL del teu Web App
+    const data = await res.json();
+    reserved = data.filter(r => r.buc===selectedBuc && r.date===selectedDate).map(r=>r.start);
+  }catch(e){ console.log("Error obtenint reserves:", e); }
+
+  for(let i=0;i<TIMES.length-1;i++){
+    const el=document.createElement("div");
+    el.textContent=`${TIMES[i]} – ${TIMES[i+1]}`;
+    el.className="slot";
+    if(reserved.includes(TIMES[i]) || cart.some(c=>c.date===selectedDate&&c.buc===selectedBuc&&i>=c.startCell&&i<=c.endCell)) el.classList.add("busy");
+    else el.onclick=()=>selectStart(i);
+    slotsEl.appendChild(el);
+  }
+  updateCartText();
+}
+
+function selectStart(i){
+  startCell=i; endCell=i+MIN_CELLS-1; updateSelection();
+  const slotsEls=document.querySelectorAll(".slot");
+  for(let j=startCell;j<startCell+MAX_CELLS&&j<TIMES.length-1;j++){
+    slotsEls[j].onclick=()=>{const newEnd=j,length=newEnd-startCell,newHours=length/2;
+      if(length>=MIN_CELLS&&length<=MAX_CELLS){
+        if(totalHoursInMonth(new Date().getFullYear(),new Date().getMonth())+newHours>MAX_HOURS_MONTH){alert("No pots superar 10h en aquest mes.");return;}
+        if(totalHoursInDay(selectedDate)+newHours>3){alert("No pots reservar més de 3h en aquest dia.");return;}
+        endCell=newEnd; updateSelection();
+      }
+    };
+  }
+}
+
+function updateSelection(){
+  document.querySelectorAll(".slot").forEach((el,i)=>{el.classList.remove("selected"); if(startCell!==null&&endCell!==null&&i>=startCell&&i<=endCell) el.classList.add("selected"); });
+  if(startCell!==null&&endCell!==null){ const dur=(endCell-startCell+1)/2; rangeText.textContent=`Des de ${TIMES[startCell]} fins ${TIMES[endCell+1]} (Durada: ${dur} h)`; selection.style.display="block";}
+}
+
+addCartBtn.onclick=()=>{
+  if(startCell===null||endCell===null) return;
+  const dur=(endCell-startCell+1)/2;
+  if(totalHoursInDay(selectedDate)+dur>3){alert("No pots reservar més de 3h en aquest dia.");return;}
+  if(totalHoursInMonth(new Date().getFullYear(),new Date().getMonth())+dur>MAX_HOURS_MONTH){alert("No pots superar 10h en aquest mes.");return;}
+  cart.push({buc:selectedBuc,date:selectedDate,startCell,endCell,dur});
+  startCell=endCell=null; renderSlots(); selection.style.display="none"; checkout.style.display="block";
+}
+
+function updateCartText(){
+  cartText.innerHTML="";
+  if(cart.length===0){cartText.textContent="Carret buit"; summary.style.display="none"; checkout.style.display="none"; return;}
+  cart.forEach((c,index)=>{
+    const div=document.createElement("div"); div.style.display="flex"; div.style.justifyContent="space-between"; div.style.alignItems="center"; div.style.padding="4px 0";
+    const txt=document.createElement("span"); txt.textContent=`Buc ${c.buc} - ${c.date} de ${TIMES[c.startCell]} a ${TIMES[c.endCell+1]} (${c.dur} h)`; div.appendChild(txt);
+    const btn=document.createElement("button"); btn.textContent="Eliminar"; btn.style.background="#f87171"; btn.onclick=()=>{cart.splice(index,1); renderSlots(); updateCartText();}; div.appendChild(btn);
+    cartText.appendChild(div);
+  });
+  const total=cart.reduce((sum,c)=>sum+c.dur,0);
+  priceEl.textContent=`Preu total: ${total*PRICE_PER_HOUR} €`;
+  durationEl.textContent=`Total hores seleccionades: ${total} h`;
+  summary.style.display="block";
+}
+
+confirmBtn.onclick = async ()=>{
+  if(cart.length===0){alert("Carret buit!");return;}
+  if(!nameInput.value||!emailInput.value){alert("Omple nom i correu");return;}
+
+  for(const c of cart){
+    try{
+      const res = await fetch("https://script.googleusercontent.com/macros/echo?user_content_key=AehSKLi9x6jTKjFliPjcBfo7vLpkb6xkUCfBvRJOPiYnWffuZEzIh5GBjqAY8u7YUUPnGMccXvCxcRI7MmP25jWl0SANOIwV7aLQyoovlR3xp7m9F-0qiOQ214dZv9fCRZvYy5cIitac4ltVB2DYjpPukkSD5BQAZ5JXte57HmTMZufz1C_b1zsVRVjfkujrauK0AdyioruPpNpbgiFRCAlOZ26upti3IXp4K9DClS36l0W6ObT9_5bIqRKT9KxEwaleg_Ac9_xm--58oXtwpkbtgsYwn8OR8Lbiy_ELfCt1&lib=MWII6iNzHgeic5vrvz8SCzTKGIGz7g7tR", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          secret:"LAPUA2026",
+          buc:c.buc,
+          date:c.date,
+          start:TIMES[c.startCell],
+          end:TIMES[c.endCell+1],
+          duration:c.dur,
+          name:nameInput.value,
+          email:emailInput.value
+        })
+      });
+      const text = await res.text();
+      if(text!=="GUARDADO"){alert("Error al guardar la reserva: "+text);}
+    }catch(e){alert("Error al guardar la reserva: "+e);}
+  }
+
+  alert("Reserva confirmada!");
+  cart=[]; startCell=endCell=null; nameInput.value=""; emailInput.value="";
+  checkout.style.display="none"; renderSlots();
+}
+
+/* Navegació mesos */
+document.getElementById("prev").onclick=()=>{month--; if(month<0){month=11; year--;} buildCalendar();};
+document.getElementById("next").onclick=()=>{month++; if(month>11){month=0; year++;} buildCalendar();};
+
+buildCalendar();
+</script>
+</body>
+</html>
