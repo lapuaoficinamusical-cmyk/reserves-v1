@@ -2,6 +2,7 @@
 const PRICE_PER_HOUR=8, MIN_CELLS=2, MAX_CELLS=6, MAX_HOURS_MONTH=10;
 const TIMES=[];
 for(let h=9;h<21;h++){ TIMES.push(`${String(h).padStart(2,"0")}:00`); TIMES.push(`${String(h).padStart(2,"0")}:30`); }
+const BOOKING_WEBHOOK_URL="";
 
 const festiusCatalunya=["2026-01-01","2026-01-06","2026-04-03","2026-04-06","2026-05-01","2026-06-24","2026-08-15","2026-09-11","2026-10-12","2026-12-08","2026-12-25","2026-12-26","2026-03-03","2026-06-29"];
 
@@ -80,6 +81,7 @@ function saveRes(r){ localStorage.setItem(key(),JSON.stringify(r)); }
 /* CART */
 function totalHoursInMonth(y,m){ return cart.reduce((sum,c)=>{const cd=new Date(c.date);return(cd.getFullYear()===y&&cd.getMonth()===m?sum+c.dur:sum);},0); }
 function totalHoursInDay(dateStr){ return cart.reduce((sum,c)=>c.date===dateStr?sum+c.dur:sum,0); }
+function totalPrice(){ return cart.reduce((sum,c)=>sum+c.dur,0)*PRICE_PER_HOUR; }
 
 /* FRANGES */
 function renderSlots(){
@@ -157,17 +159,62 @@ function updateCartText(){
   summary.classList.remove("hidden");
 }
 
+async function submitReservation(payload){
+  if(!BOOKING_WEBHOOK_URL){
+    return {ok:false,message:"No s'ha configurat l'enviament. Afegeix l'URL del webhook per registrar i enviar el correu."};
+  }
+  try{
+    const response=await fetch(BOOKING_WEBHOOK_URL,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    if(!response.ok){
+      return {ok:false,message:"No s'ha pogut enviar la reserva. Torna-ho a provar."};
+    }
+    return {ok:true};
+  }catch(error){
+    return {ok:false,message:"Error de connexió en enviar la reserva."};
+  }
+}
+
 /* CONFIRMAR */
-confirmBtn.onclick=()=>{
+confirmBtn.onclick=async()=>{
   if(cart.length===0){alert("Carret buit!");return;}
   if(!nameInput.value||!emailInput.value){alert("Omple nom i correu");return;}
+  confirmBtn.disabled=true;
+  confirmBtn.textContent="Enviant...";
+  const payload={
+    name:nameInput.value.trim(),
+    email:emailInput.value.trim(),
+    totalHours:cart.reduce((sum,c)=>sum+c.dur,0),
+    totalPrice:totalPrice(),
+    reservations:cart.map(c=>({
+      buc:c.buc,
+      date:c.date,
+      startTime:TIMES[c.startCell],
+      endTime:TIMES[c.endCell+1],
+      duration:c.dur
+    })),
+    createdAt:new Date().toISOString()
+  };
+  const result=await submitReservation(payload);
+  if(!result.ok){
+    alert(result.message);
+    confirmBtn.disabled=false;
+    confirmBtn.textContent="Confirmar reserva";
+    return;
+  }
   cart.forEach(c=>{
     const reserved=getRes();
     for(let i=c.startCell;i<=c.endCell;i++) reserved.push(TIMES[i]);
     saveRes(reserved);
   });
-  alert(`Reserva confirmada per ${nameInput.value} (${emailInput.value})`);
-  cart=[]; startCell=endCell=null; nameInput.value=""; emailInput.value=""; checkout.classList.add("hidden"); renderSlots();
+  alert(`Reserva confirmada per ${nameInput.value} (${emailInput.value}). Revisa el teu correu per verificar-la.`);
+  cart=[]; startCell=endCell=null; nameInput.value=""; emailInput.value=""; checkout.classList.add("hidden");
+  confirmBtn.disabled=false;
+  confirmBtn.textContent="Confirmar reserva";
+  renderSlots();
 }
 
 /* NAV CALENDARI */
