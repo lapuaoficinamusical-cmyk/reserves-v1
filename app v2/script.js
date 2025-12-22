@@ -138,9 +138,17 @@ function updateCartText(){
   cartText.innerHTML=""; 
   if(cart.length===0){cartText.textContent="Carret buit"; summary.classList.add("hidden"); checkout.classList.add("hidden"); return;}
   cart.forEach((c,index)=>{
-    const div=document.createElement("div"); div.style.display="flex"; div.style.justifyContent="space-between"; div.style.alignItems="center"; div.style.padding="4px 0";
-    const txt=document.createElement("span"); txt.textContent=`Buc ${c.buc} - ${c.date} de ${TIMES[c.startCell]} a ${TIMES[c.endCell+1]} (${c.dur} h)`; div.appendChild(txt);
-    const btn=document.createElement("button"); btn.textContent="Eliminar"; btn.style.background="#f87171"; btn.onclick=()=>{cart.splice(index,1); renderSlots(); updateCartText();}; div.appendChild(btn);
+    const div=document.createElement("div");
+    div.className="cart-item";
+    const txt=document.createElement("span");
+    txt.className="cart-item__text";
+    txt.textContent=`Buc ${c.buc} - ${c.date} de ${TIMES[c.startCell]} a ${TIMES[c.endCell+1]} (${c.dur} h)`;
+    div.appendChild(txt);
+    const btn=document.createElement("button");
+    btn.className="button button--danger button--small";
+    btn.textContent="Eliminar";
+    btn.onclick=()=>{cart.splice(index,1); renderSlots(); updateCartText();};
+    div.appendChild(btn);
     cartText.appendChild(div);
   });
   const total=cart.reduce((sum,c)=>sum+c.dur,0); 
