@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reserves | Gestió moderna de reserves</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand__mark">R</span>
+          <div>
+            <p class="brand__name">Reserves</p>
+            <p class="brand__tag">Planifica sense friccions</p>
+          </div>
+        </div>
+        <nav class="topbar__nav">
+          <a href="#beneficis">Beneficis</a>
+          <a href="#reserva">Reserva</a>
+          <a href="#suport">Suport</a>
+        </nav>
+        <button class="button button--ghost" type="button">Entrar</button>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div class="hero__content">
+            <p class="pill">Nova experiència de reserves</p>
+            <h1>Tot el que necessites per coordinar cites i recursos en minuts.</h1>
+            <p class="hero__copy">
+              Centralitza horaris, disponibilitat i preferències del client en una única interfície.
+              Reserva, confirma i recorda en temps real.
+            </p>
+            <div class="hero__actions">
+              <button class="button" type="button">Comença ara</button>
+              <button class="button button--ghost" type="button">Veure demo</button>
+            </div>
+            <div class="hero__stats">
+              <div>
+                <h3>98%</h3>
+                <span>confirmacions en 1 minut</span>
+              </div>
+              <div>
+                <h3>24/7</h3>
+                <span>assistència automatitzada</span>
+              </div>
+              <div>
+                <h3>+3k</h3>
+                <span>reserves gestionades/mes</span>
+              </div>
+            </div>
+          </div>
+          <aside class="hero__card" id="reserva">
+            <header>
+              <h2>Nova reserva</h2>
+              <p>Escull el servei i confirma l'hora ideal.</p>
+            </header>
+            <form id="booking-form">
+              <label>
+                Servei
+                <select name="service" required>
+                  <option value="">Selecciona un servei</option>
+                  <option value="Consultoria">Consultoria</option>
+                  <option value="Sala privada">Sala privada</option>
+                  <option value="Esdeveniment">Esdeveniment</option>
+                </select>
+              </label>
+              <label>
+                Data
+                <input type="date" name="date" required />
+              </label>
+              <label>
+                Hora
+                <div class="slot-grid" role="listbox" aria-label="Tria una franja horària">
+                  <button type="button" class="slot" data-slot="09:00">09:00</button>
+                  <button type="button" class="slot" data-slot="11:30">11:30</button>
+                  <button type="button" class="slot" data-slot="14:00">14:00</button>
+                  <button type="button" class="slot" data-slot="16:30">16:30</button>
+                  <button type="button" class="slot" data-slot="18:00">18:00</button>
+                </div>
+                <input type="hidden" name="slot" required />
+              </label>
+              <label>
+                Nom complet
+                <input type="text" name="name" placeholder="Ex: Marta Soler" required />
+              </label>
+              <label>
+                Email
+                <input type="email" name="email" placeholder="marta@email.com" required />
+              </label>
+              <button class="button button--full" type="submit">Confirmar reserva</button>
+            </form>
+            <div class="summary" aria-live="polite">
+              <h3>Resum de la reserva</h3>
+              <p id="summary-text">Escull un servei i una hora per veure el resum.</p>
+              <div class="summary__status" id="summary-status">Pendents de confirmar</div>
+            </div>
+          </aside>
+        </section>
+
+        <section class="benefits" id="beneficis">
+          <article>
+            <h3>Automatitza recordatoris</h3>
+            <p>Envía notificacions personalitzades per reduir absències.</p>
+          </article>
+          <article>
+            <h3>Calendari sincronitzat</h3>
+            <p>Integra Google Calendar i Outlook amb un clic.</p>
+          </article>
+          <article>
+            <h3>Control en temps real</h3>
+            <p>Visualitza ocupació, cancel·lacions i preferències al moment.</p>
+          </article>
+        </section>
+
+        <section class="support" id="suport">
+          <div>
+            <h2>Vols posar-ho en marxa avui?</h2>
+            <p>
+              Parla amb l'equip per adaptar el flux de reserves al teu negoci. Dissenyem la millor
+              experiència per a clients i equips.
+            </p>
+          </div>
+          <button class="button" type="button">Contacta'ns</button>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
